@@ -23,7 +23,7 @@ namespace GPIO101
 
         private byte[,] _matrixData = new byte[MATRIX_SIZE, MATRIX_SIZE];
 
-        // I2C zařízení
+        // I2C device, display
         private I2cDevice _matrixDevice = null;
 
         public MainPage()
@@ -65,24 +65,29 @@ namespace GPIO101
         // viz http://robodoupe.cz/2013/maticovy-displej-8x8/
         private void setMatrixData(int row, int column, byte state)
         {
+            // shift columns in grid to columns on device
             column = (column + 7) & 7;
+            // write state to matrix
             _matrixData[row, column] = state;
 
             byte rowData = 0x00;
 
+            // calculate byte            
             for (int i = 0; i < MATRIX_SIZE; i++)
             {
                 rowData |= (byte)(_matrixData[row, i] << (byte)i);
             }
 
+            // show byte value for row
             _matrixRowValue[row].Text = String.Format("0x{0:X2}", rowData);
 
-
+            // if we have not real display return
             if (_matrixDevice == null)
             {
                 return;
             }
 
+            // write value to display
             _matrixDevice.Write(new byte[] { (byte)(row*2), rowData });
         }
 
@@ -110,19 +115,22 @@ namespace GPIO101
         {
             try
             {
-                // Nastavení I2C sběrnice
+                // I2C bus settings
+                // Address of device is 0x70
                 I2cConnectionSettings settings = new I2cConnectionSettings(0x70);
+                // Using standard speed 100 kHZ
                 settings.BusSpeed = I2cBusSpeed.StandardMode;
 
+                // Get device on bus named I2C1
                 string aqs = I2cDevice.GetDeviceSelector("I2C1");
                 var dis = await DeviceInformation.FindAllAsync(aqs);
                 _matrixDevice = await I2cDevice.FromIdAsync(dis[0].Id, settings);
 
-                // inicializace displeje
+                // diplay initialization
                 _matrixDevice.Write(new byte[] { 0x21 });
                 _matrixDevice.Write(new byte[] { 0x81 });
 
-                // zhasnutí všech LED
+                // switch all LEDs off
                 for (int i = 0; i < (MATRIX_SIZE * 2); i = i + 2)
                 {
                     _matrixDevice.Write(new byte[] { (byte)i, 0x00 });
